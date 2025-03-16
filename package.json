@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon src/server.ts"
+    "dev": "nodemon src/server.ts",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "start": "node server.js",
+    "build": "tsc"
   },
   "keywords": [],
   "author": "",
