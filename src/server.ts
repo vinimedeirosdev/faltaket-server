@@ -1,4 +1,5 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, Application } from 'express';
+import cors from 'cors';
 import { db } from './firebaseConfig'; // Importando a configuração do Firestore
 
 // Inicializando o servidor Express
@@ -7,6 +8,7 @@ const port = 3000;
 
 // Middleware para parsear JSON
 app.use(express.json());
+app.use(cors());
 
 // Rota GET para listar os itens
 app.get('/items', async (req: Request, res: Response) => {
@@ -37,17 +39,66 @@ app.delete('/items/:id', async (req: Request, res: Response) => {
 });
 
 // Rota POST para adicionar um novo item
-app.post('/items', async (req: Request, res: Response) => {
-    const { name } = req.body;
+app.post('/register', async (req: Request, res: Response) => {
+    const { name, user, password } = req.body;
     try {
         const newItem = {
-            name,
+            name: name,
+            user: user,
+            password: password,
         };
-        const docRef = await db.collection('items').add(newItem); // Adicionando item ao Firestore
-        res.status(201).json({ id: docRef.id, ...newItem });
+
+        const userExists = await db.collection('users').where('user', '==', user).get();
+
+        if (!userExists.empty) {
+            res.status(201).json({
+                msg: 'Usuário já existe',
+                success: false,
+            })
+            return;
+        }
+
+        const docRef = await db.collection('users').add(newItem); // Adicionando item ao Firestore
+        res.status(201).json({ user: { id: docRef.id, ...newItem }, success: true });
     } catch (error) {
         console.error('Erro ao adicionar item:', error);
         res.status(500).json({ error: 'Erro ao adicionar item' });
+    }
+});
+
+app.post('/login', async (req: Request, res: Response) => {
+    const { user, password } = req.body; // Pegando as credenciais do corpo da requisição
+    try {
+        // Buscando o usuário no Firestore com base no nome de usuário
+        const userSnapshot = await db.collection('users').where('user', '==', user).get();
+
+        if (userSnapshot.empty) {
+            // Se não encontrar o usuário
+            res.status(200).json({ msg: 'Usuário não encontrado', success: false });
+            return;
+        }
+
+        // Pegando o primeiro usuário encontrado (assumindo que o nome de usuário é único)
+        const userDoc = userSnapshot.docs[0];
+        const storedPassword = userDoc.data().password;
+
+        // Verificando se a senha fornecida é igual à armazenada no Firestore
+        if (storedPassword === password) {
+            // Se as senhas coincidirem, retorna sucesso (aqui você pode adicionar um token de sessão ou JWT, se necessário)
+            res.status(200).json({
+                user: {
+                    ...userDoc.data()
+                    , id: userDoc.id
+                },
+                success: true
+            });
+        } else {
+            // Se as senhas não coincidirem
+            res.status(200).json({ msg: 'Senha incorreta', successs: false });
+        }
+    } catch (error) {
+        console.error('Erro ao realizar login:', error);
+        res.status(500).json({ error: 'Erro ao realizar login' });
     }
 });
 
