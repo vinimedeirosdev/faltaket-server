@@ -1,0 +1,11 @@
+
+@port = 3000
+@rota = getMaterias
+
+###
+POST http://localhost:{{port}}/{{rota}}
+Content-Type: application/json
+
+{
+ "id_user": "UNZRHNqON8ZUjhT0xK9E"
+}
