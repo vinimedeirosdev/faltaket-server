@@ -1,63 +1,57 @@
-import express from 'express';
-import Database from 'better-sqlite3';
-import cors from 'cors';
-import Ctrl from './ctrl'; // Supondo que você tenha a classe Ctrl no arquivo ctrl.ts
+import express, { Request, Response } from 'express';
+import { db } from './firebaseConfig'; // Importando a configuração do Firestore
 
+// Inicializando o servidor Express
 const app = express();
-const db = new Database('database.sqlite');
+const port = 3000;
 
-app.use(cors());
+// Middleware para parsear JSON
 app.use(express.json());
 
-// Cria a tabela (caso não exista)
-db.prepare(`
-    CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        user TEXT UNIQUE NOT NULL,
-        password TEXT NOT NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-`).run();
-
-// Classe Router para organizar as rotas
-class Router {
-    private conexao;
-    private ctrl;
-
-    constructor(conexao: Database) {
-        this.conexao = conexao;
-        this.ctrl = new Ctrl(this.conexao); // Supondo que a classe Ctrl usa o banco
+// Rota GET para listar os itens
+app.get('/items', async (req: Request, res: Response) => {
+    try {
+        const snapshot = await db.collection('items').get(); // Obtendo todos os itens
+        const items = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        res.json(items);
+    } catch (error) {
+        console.error('Erro ao buscar itens:', error);
+        res.status(500).json({ error: 'Erro ao buscar itens' });
     }
+});
 
-    // Definindo os métodos de roteamento
-    public routes(app: express.Application) {
-        // Rota para listar usuários
-        app.get('/users', (req, res) => {
-            const users = this.conexao.prepare('SELECT * FROM users').all();
-            res.json(users);
-        });
-
-        // Rota para adicionar um usuário
-        app.post('/register', async (req, res) => {
-            const { name, user, password } = req.body;
-            const result = await this.ctrl.register({ name, user, password });
-            res.json(result);
-        });
-
-        app.post('/login', async (req, res) => {
-            const { user, password } = req.body;
-            const result = await this.ctrl.login(user, password);
-            res.json(result);
-        })
+// Rota DELETE para remover um item pelo ID
+app.delete('/items/:id', async (req: Request, res: Response) => {
+    const { id } = req.params;
+    try {
+        const itemRef = db.collection('items').doc(id); // Referência ao documento
+        await itemRef.delete(); // Deletando o item
+        res.status(204).send(); // Retorna status 204 (No Content) após a exclusão
+    } catch (error) {
+        console.error('Erro ao excluir item:', error);
+        res.status(500).json({ error: 'Erro ao excluir item' });
     }
-}
+});
 
-const router = new Router(db);
-router.routes(app); // Chama os métodos de rota da classe Router
+// Rota POST para adicionar um novo item
+app.post('/items', async (req: Request, res: Response) => {
+    const { name } = req.body;
+    try {
+        const newItem = {
+            name,
+        };
+        const docRef = await db.collection('items').add(newItem); // Adicionando item ao Firestore
+        res.status(201).json({ id: docRef.id, ...newItem });
+    } catch (error) {
+        console.error('Erro ao adicionar item:', error);
+        res.status(500).json({ error: 'Erro ao adicionar item' });
+    }
+});
 
-// Porta do servidor
-const PORT = 5000;
-app.listen(PORT, () => {
-    console.log(`✅ Backend rodando em http://localhost:${PORT}`);
+// Iniciar o servidor
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
 });

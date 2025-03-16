@@ -1,10 +1,11 @@
 {
-  "outDir": "./dist",
-  "rootDir": "./src",
-  "strict": true,
-  "moduleResolution": "node",
-  "esModuleInterop": true,
   "compilerOptions": {
-    "esModuleInterop": true
-  }
+    "target": "ES6",
+    "module": "commonjs",
+    "outDir": "./dist", // Garante que o arquivo será gerado na pasta dist
+    "rootDir": "./src", // Diretório de origem dos arquivos .ts
+    "esModuleInterop": true,
+    "strict": true
+  },
+  "include": ["src/**/*.ts"]
 }
