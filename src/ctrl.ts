@@ -72,18 +72,72 @@ export const getMaterias = async (req: Request, res: Response) => {
     }
 };
 
+export const addMateria = async (req: Request, res: Response) => {
+    const { id_user, nome, semana, faltas } = req.body;
+
+    try {
+        const newMateria = { id_user, nome, semana };
+
+        const docRef = await db.collection('materias').add(newMateria);
+        let faltasArray = []
+
+        for (let i = 1; i <= faltas; i++) {
+            const docRefFalta = await db.collection('materias').doc(docRef.id).collection('faltas').add({
+                active: false,
+                indice: i
+            });
+
+            faltasArray.push({
+                id: docRefFalta.id,
+                active: false,
+                indice: i
+            });
+        }
+
+        let response = {
+            id_materia: docRef.id,
+            success: true,
+            msg: "Materia adicionada com sucesso!",
+        }
+
+        res.status(200).json(response);
+
+    } catch (error) {
+        console.error('Erro ao adicionar matéria:', error);
+        res.status(500).json({ error: 'Erro ao adicionar matéria' });
+    }
+}
+
 export const editMateria = async (req: Request, res: Response) => {
-    const { id_user, id_materia, nome, descricao } = req.body;
+    const { id_materia, nome, faltas, semana, faltas_active } = req.body;
 
     try {
         const materiaRef = db.collection('materias').doc(id_materia);
-        const materiaDoc = await materiaRef.get();
+        await materiaRef.update({
+            nome,
+            semana,
+        });
 
-        if (!materiaDoc.exists) {
-            return res.status(404).json({ msg: 'Matéria não encontrada', success: false });
+        await deleteSubcollection(materiaRef, 'faltas');
+
+        let faltasArray = []
+
+        for (let i = 1; i <= faltas; i++) {
+
+            let activeFalta = i <= faltas_active ? true : false
+
+            const docRefFalta = await db.collection('materias').doc(id_materia).collection('faltas').add({
+                active: activeFalta,
+                indice: i
+            });
+
+            faltasArray.push({
+                id: docRefFalta.id,
+                active: activeFalta,
+                indice: i
+            });
         }
 
-        await materiaRef.update({ nome, descricao });
 
         res.status(200).json({ msg: 'Matéria atualizada com sucesso', success: true });
     } catch (error) {
@@ -91,4 +145,28 @@ export const editMateria = async (req: Request, res: Response) => {
         res.status(500).json({ error: 'Erro ao editar matéria' });
     }
 };
+
+export const deleteMateria = async (req: Request, res: Response) => {
+    const { id_materia } = req.body;
+
+    try {
+        await db.collection('materias').doc(id_materia).delete();
+        res.status(200).json({ msg: 'Matéria excluída com sucesso', success: true });
+    } catch (error) {
+        console.error('Erro ao excluir matéria:', error);
+        res.status(500).json({ error: 'Erro ao excluir matéria' });
+    }
+}
+
+const deleteSubcollection = async (docRef: any, subcollectionName: any) => {
+    const subcollectionRef = docRef.collection(subcollectionName);
+    const snapshot = await subcollectionRef.get();
+
+    const batch = db.batch();
+    snapshot.forEach((doc: any) => {
+        batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+}
 

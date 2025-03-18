@@ -1,11 +1,41 @@
 
 @port = 3000
-@rota = getMaterias
 
 ###
-POST http://localhost:{{port}}/{{rota}}
+POST http://localhost:{{port}}/getMaterias
 Content-Type: application/json
 
 {
  "id_user": "UNZRHNqON8ZUjhT0xK9E"
+}
+
+###
+POST http://localhost:{{port}}/addMateria
+Content-Type: application/json
+
+{
+ "id_user": "UNZRHNqON8ZUjhT0xK9E", 
+"nome": "teste3", 
+"semana": 4, 
+"faltas": 5
+}
+
+###
+POST http://localhost:{{port}}/editMateria
+Content-Type: application/json
+
+{
+    "id_materia": "ntKmX4HexMit9Ci96a9A",
+    "nome": "teste344", 
+    "semana": 4, 
+    "faltas": 5,
+    "faltas_active": 3
+}
+
+###
+POST http://localhost:{{port}}/deleteMateria
+Content-Type: application/json
+
+{
+    "id_materia": "rHs2Ar7q0OrppTcTavby"
 }
