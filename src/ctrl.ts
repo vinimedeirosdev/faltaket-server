@@ -151,6 +151,8 @@ export const deleteMateria = async (req: Request, res: Response) => {
 
     try {
         await db.collection('materias').doc(id_materia).delete();
+        await deleteSubcollection(db.collection('materias').doc(id_materia), 'faltas');
+
         res.status(200).json({ msg: 'Matéria excluída com sucesso', success: true });
     } catch (error) {
         console.error('Erro ao excluir matéria:', error);

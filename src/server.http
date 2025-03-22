@@ -25,7 +25,7 @@ POST http://localhost:{{port}}/editMateria
 Content-Type: application/json
 
 {
-    "id_materia": "ntKmX4HexMit9Ci96a9A",
+    "id_materia": "1WYHoKvYrsqkZkUkktly",
     "nome": "teste344", 
     "semana": 4, 
     "faltas": 5,
