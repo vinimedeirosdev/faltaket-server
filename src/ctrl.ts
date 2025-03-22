@@ -183,6 +183,45 @@ export const activeFalta = async (req: Request, res: Response) => {
     }
 }
 
+export const editUser = async (req: Request, res: Response) => {
+    const { id_user, name, user, alterarSenha, senha, newSenha } = req.body;
+
+    try {
+        const userExits = await db.collection('users').where('user', '==', user).get();
+
+        if (userExits.docs.length > 0 && userExits.docs[0].id !== id_user) {
+            res.status(200).json({ msg: 'Este user já está sendo utilizado.', success: false });
+            return;
+        }
+
+        const userRef = db.collection('users').doc(id_user);
+
+        if (alterarSenha) {
+            const userDoc = await userRef.get();
+
+            if (userDoc.data()?.password !== senha) {
+                res.status(200).json({ msg: 'Senha incorreta', success: false });
+                return;
+            }
+
+            await userRef.update({
+                password: newSenha
+            });
+        }
+
+        await userRef.update({
+            name,
+            user
+        });
+
+        res.status(200).json({ msg: 'Usuário atualizado com sucesso', success: true });
+
+    } catch (err) {
+        console.error('Erro ao editar usuário:', err);
+        res.status(500).json({ error: 'Erro ao editar usuário' });
+    }
+}
+
 const deleteSubcollection = async (docRef: any, subcollectionName: any) => {
     const subcollectionRef = docRef.collection(subcollectionName);
     const snapshot = await subcollectionRef.get();
