@@ -39,3 +39,13 @@ Content-Type: application/json
 {
     "id_materia": "rHs2Ar7q0OrppTcTavby"
 }
+
+###
+POST http://localhost:{{port}}/activeFalta
+Content-Type: application/json
+
+{
+   "indice": 6, 
+   "active": true, 
+   "id_materia": "9CTFQuOftjWRaSyGJXJO"  
+}

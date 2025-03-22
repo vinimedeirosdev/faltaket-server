@@ -160,6 +160,29 @@ export const deleteMateria = async (req: Request, res: Response) => {
     }
 }
 
+export const activeFalta = async (req: Request, res: Response) => {
+    const { indice, active, id_materia } = req.body;
+
+    try {
+        const querySnapshot = await db
+            .collection('materias')
+            .doc(id_materia)
+            .collection('faltas')
+            .where('indice', '==', indice)
+            .limit(1)
+            .get();
+
+        const docRef = querySnapshot.docs[0].ref;
+
+        await docRef.update({ active });
+        res.status(200).json({ msg: 'Falta atualizada com sucesso', success: true });
+
+    } catch (error) {
+        console.error('Erro ao atualizar falta:', error);
+        res.status(500).json({ error: 'Erro ao atualizar falta' });
+    }
+}
+
 const deleteSubcollection = async (docRef: any, subcollectionName: any) => {
     const subcollectionRef = docRef.collection(subcollectionName);
     const snapshot = await subcollectionRef.get();
