@@ -18,13 +18,13 @@ O nome `faltaket-server` foi mantido por histórico. Hoje o repositório contém
 | Documentação                              | [`docs/MIGRACAO.md`](docs/MIGRACAO.md), [`docs/LEMBRETES.md`](docs/LEMBRETES.md), [`docs/SECURITY_RULES.md`](docs/SECURITY_RULES.md), [`CHANGELOG.md`](CHANGELOG.md) |
 
 A API Express da v1 (`/login`, `/getMaterias`, ...) foi removida. Ela continua
-disponível no histórico do git (branch `master`).
+disponível na branch `v1`.
 
 ---
 
 ## Modelo de dados (v3)
 
-Detalhes de cada campo: [DATA_MODEL.md do front](https://github.com/vinimedeirosdev/faltaket/blob/master/docs/DATA_MODEL.md).
+Detalhes de cada campo: [DATA_MODEL.md do front](https://github.com/vinimedeirosdev/faltaket/blob/main/docs/DATA_MODEL.md).
 
 ```
 users/{uid}                        uid == id do doc da v1 (mantido)

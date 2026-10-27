@@ -63,7 +63,7 @@ O workflow está em [`.github/workflows/lembretes.yml`](../.github/workflows/lem
    - Valor: o **conteúdo inteiro** do JSON baixado.
 3. (Opcional) Em **Variables**, crie `APP_URL` se o app tiver domínio próprio
    (padrão: `https://faltaket.web.app`).
-4. Faça push da branch com o workflow para a branch padrão (`master`). O GitHub só
+4. Faça push da branch com o workflow para a branch padrão (`main`). O GitHub só
    agenda workflows que estão na branch padrão.
 5. Teste: aba **Actions → Lembretes → Run workflow** (deixe "Enviar de verdade"
    desmarcado para só ver no log o que seria enviado; marque para enviar).
