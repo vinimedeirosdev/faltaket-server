@@ -1,0 +1,95 @@
+rules_version = '2';
+
+// Faltaket v2 - Security Rules do Firestore
+// Documentação completa: docs/SECURITY_RULES.md
+//
+// Modelo de dados:
+//   users/{uid}                        -> perfil do usuário (uid == uid do Firebase Auth)
+//   users/{uid}/materias/{materiaId}   -> matérias do usuário (faltas ficam dentro do doc)
+//
+// Princípio: tudo é negado por padrão. Só o dono (request.auth.uid == uid) acessa
+// os próprios dados, e toda escrita tem o formato validado.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------------------------------------------------------- helpers
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isNonEmptyString(value, maxLen) {
+      return value is string && value.size() >= 1 && value.size() <= maxLen;
+    }
+
+    function isIntInRange(value, min, max) {
+      return value is int && value >= min && value <= max;
+    }
+
+    // ---------------------------------------------------------------- users
+
+    // Criação do perfil: só name, username e createdAt.
+    // `features` NUNCA pode ser enviado pelo cliente (é gravado só via Admin SDK).
+    function isValidUserCreate(data) {
+      return data.keys().hasOnly(['name', 'username', 'createdAt'])
+        && data.keys().hasAll(['name', 'username', 'createdAt'])
+        && isNonEmptyString(data.name, 40)
+        && data.username is string
+        && data.username.size() >= 1
+        && data.username == data.username.trim().lower()
+        && data.createdAt is timestamp;
+    }
+
+    // Foto de perfil: data URL de imagem (o front gera um WebP/JPEG 256x256,
+    // ~10-30 KB). Limite de 150 mil caracteres (~110 KB) para não inchar o doc.
+    function isValidFoto(foto) {
+      return foto is string
+        && foto.size() <= 150000
+        && foto.matches('data:image/(webp|jpeg);base64,[A-Za-z0-9+/=]+');
+    }
+
+    // Atualização do perfil: só `name` e `foto` podem mudar.
+    // `foto` pode ser removida (campo apagado) ou trocada por uma imagem válida.
+    function isValidUserUpdate() {
+      let data = request.resource.data;
+      return data.diff(resource.data).affectedKeys().hasOnly(['name', 'foto'])
+        && isNonEmptyString(data.name, 40)
+        && (!('foto' in data) || isValidFoto(data.foto));
+    }
+
+    // ---------------------------------------------------------------- materias
+
+    function isValidMateria(data) {
+      return data.keys().hasOnly(['nome', 'diaSemana', 'maxFaltas', 'cor', 'faltas', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['nome', 'diaSemana', 'maxFaltas', 'cor', 'faltas', 'createdAt', 'updatedAt'])
+        && isNonEmptyString(data.nome, 40)
+        && isIntInRange(data.diaSemana, 1, 7)
+        && isIntInRange(data.maxFaltas, 1, 99)
+        && data.cor in ['violet', 'pink', 'rose', 'amber', 'emerald', 'sky', 'indigo', 'teal']
+        && data.faltas is list
+        && data.faltas.size() <= 200
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && isValidUserCreate(request.resource.data);
+      allow update: if isOwner(uid) && isValidUserUpdate();
+      allow delete: if isOwner(uid);
+
+      match /materias/{materiaId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isValidMateria(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+    }
+
+    // Qualquer outro caminho cai aqui implicitamente: negado.
+  }
+}

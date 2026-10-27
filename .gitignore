@@ -1,4 +1,21 @@
+# Dependências
+node_modules/
+
+# Segredos (credenciais da service account etc.)
 .env
-.env.production
-dist
-node_modules
+.env.*
+!.env.example
+
+# Projeto Firebase local (copie de .firebaserc.example)
+.firebaserc
+
+# Backups gerados pela migração (CONTÊM SENHAS EM TEXTO PURO da v1!)
+backups/
+
+# Logs
+*-debug.log
+npm-debug.log*
+
+# Build antigo / artefatos
+dist/
+.firebase/

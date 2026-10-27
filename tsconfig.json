@@ -1,11 +1,18 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "commonjs",
-    "outDir": "./dist", // Garante que o arquivo será gerado na pasta dist
-    "rootDir": "./src", // Diretório de origem dos arquivos .ts
-    "esModuleInterop": true,
-    "strict": true
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
+    "noUncheckedIndexedAccess": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["scripts/**/*.ts", "tests/**/*.ts", "vitest.config.ts"]
 }
