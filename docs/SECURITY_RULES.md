@@ -49,8 +49,8 @@ subcoleção dentro de uma matéria (ex.: `users/{uid}/materias/{id}/faltas`).
     (`username == username.trim().lower()`), igual ao `normalizeUsername` do front;
   - `createdAt`: timestamp (use `serverTimestamp()`).
   - Como `features` não está na lista, o cliente **não consegue** se dar o Termo.
-- **update:** só o dono, e `diff(...).affectedKeys().hasOnly(['name'])`:
-  - só `name` pode mudar (1..40);
+- **update:** só o dono, e `diff(...).affectedKeys().hasOnly(['name', 'foto'])`:
+  - só `name` (1..40) e `foto` podem mudar. `foto` pode ser removida ou ser uma data URL `data:image/(webp|jpeg);base64,...` com até 150 mil caracteres (a foto de perfil fica no próprio doc, sem Firebase Storage);
   - `username`, `createdAt` e `features` ficam congelados — não dá para adicionar,
     alterar nem remover `features`;
   - um `setDoc` sem `merge` que "esqueça" `features` também é negado (seria remoção).

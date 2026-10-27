@@ -28,6 +28,7 @@ users/{uid}                        uid == id do doc da v1 (mantido)
   name: string (1..40)
   username: string (normalizado: trim + lowercase)
   createdAt: timestamp
+  foto?: string                    // data URL webp/jpeg 256x256, <= 150 mil chars (dono altera/remove)
   features?: { termo: bool }       // só o Admin SDK grava; ausente == false
 
 users/{uid}/materias/{materiaId}   materiaId == id do doc da v1
