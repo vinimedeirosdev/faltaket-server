@@ -1,0 +1,54 @@
+# Envia os lembretes do FaltaKet (push) duas vezes por dia.
+# Passo a passo de configuração: docs/LEMBRETES.md
+name: Lembretes
+
+on:
+  schedule:
+    # o cron do GitHub é em UTC (Brasília = UTC-3). Pode atrasar alguns minutos.
+    - cron: '0 10 * * *' # 07:00 → aulas e compromissos do dia
+    - cron: '0 21 * * *' # 18:00 → o que vence amanhã e em 3 dias
+  workflow_dispatch:
+    inputs:
+      turno:
+        description: 'Qual lembrete enviar'
+        type: choice
+        options: [manha, noite]
+        default: manha
+      enviar:
+        description: 'Enviar de verdade? (desmarcado = só mostra no log)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: lembretes
+  cancel-in-progress: false
+
+jobs:
+  lembretes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --omit=optional
+
+      - name: Definir turno
+        id: turno
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "turno=${{ inputs.turno }}" >> "$GITHUB_OUTPUT"
+            if [ "${{ inputs.enviar }}" = "true" ]; then echo "flag=--enviar" >> "$GITHUB_OUTPUT"; fi
+          else
+            # agendado: 10h UTC = manhã, 21h UTC = noite
+            if [ "$(date -u +%H)" -lt 15 ]; then echo "turno=manha" >> "$GITHUB_OUTPUT"; else echo "turno=noite" >> "$GITHUB_OUTPUT"; fi
+            echo "flag=--enviar" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Enviar lembretes
+        run: npm run lembretes -- --turno=${{ steps.turno.outputs.turno }} ${{ steps.turno.outputs.flag }}
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          APP_URL: ${{ vars.APP_URL || 'https://faltaket.web.app' }}

@@ -10,14 +10,14 @@ Este guia leva os dados do formato antigo (API Express) para o formato novo
 
 ## 1. O que muda
 
-| v1 | v2 |
-| --- | --- |
-| `users/{id}`: `{ name, user, password }` (senha em **texto puro**) | Conta no **Firebase Auth** (uid = mesmo `id`) + `users/{id}`: `{ name, username, createdAt, features? }` |
-| Login pela API comparando senha em texto puro | Login no Firebase Auth com e-mail sintético `usernameToEmail(user)` |
-| `materias/{id}`: `{ id_user, nome, semana }` | `users/{id_user}/materias/{id}` (mesmo id) |
-| `materias/{id}/faltas/{fid}`: `{ active, indice }` — nº de docs = máximo de faltas | Campo `maxFaltas` = nº de docs de falta (limitado a 1..99) |
-| | Campo `faltas` = um item `{ id: fid, data: null }` por falta com `active: true` |
-| Página "Termo" liberada por um id fixo no front | `features.termo = true` no doc do usuário (gravado só pelo script/Admin) |
+| v1                                                                                 | v2                                                                                                       |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `users/{id}`: `{ name, user, password }` (senha em **texto puro**)                 | Conta no **Firebase Auth** (uid = mesmo `id`) + `users/{id}`: `{ name, username, createdAt, features? }` |
+| Login pela API comparando senha em texto puro                                      | Login no Firebase Auth com e-mail sintético `usernameToEmail(user)`                                      |
+| `materias/{id}`: `{ id_user, nome, semana }`                                       | `users/{id_user}/materias/{id}` (mesmo id)                                                               |
+| `materias/{id}/faltas/{fid}`: `{ active, indice }` — nº de docs = máximo de faltas | Campo `maxFaltas` = nº de docs de falta (limitado a 1..99)                                               |
+|                                                                                    | Campo `faltas` = um item `{ id: fid, data: null }` por falta com `active: true`                          |
+| Página "Termo" liberada por um id fixo no front                                    | `features.termo = true` no doc do usuário (gravado só pelo script/Admin)                                 |
 
 Detalhes da conversão:
 
@@ -110,14 +110,14 @@ npm run migrate:dry
 
 Analise o relatório:
 
-| Linha | O que esperar |
-| --- | --- |
-| Users encontrados / no formato v1 | Total de usuários antigos |
-| Auth importados (previsto) | Quantos serão criados no Auth |
-| Auth pulados (já existiam) | 0 na primeira execução |
-| Matérias órfãs | Idealmente 0; se houver, confira nos avisos |
-| Faltas ativas v1 vs Faltas na v2 | Devem ser iguais |
-| FALHAS | Devem ser 0 antes de seguir |
+| Linha                             | O que esperar                               |
+| --------------------------------- | ------------------------------------------- |
+| Users encontrados / no formato v1 | Total de usuários antigos                   |
+| Auth importados (previsto)        | Quantos serão criados no Auth               |
+| Auth pulados (já existiam)        | 0 na primeira execução                      |
+| Matérias órfãs                    | Idealmente 0; se houver, confira nos avisos |
+| Faltas ativas v1 vs Faltas na v2  | Devem ser iguais                            |
+| FALHAS                            | Devem ser 0 antes de seguir                 |
 
 Se houver falhas (username duplicado, senha vazia, `semana` inválida...),
 corrija os docs v1 no console e rode o dry-run de novo.

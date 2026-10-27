@@ -1,11 +1,13 @@
 rules_version = '2';
 
-// Faltaket v2 - Security Rules do Firestore
+// FaltaKet v3 - Security Rules do Firestore
 // Documentação completa: docs/SECURITY_RULES.md
 //
 // Modelo de dados:
 //   users/{uid}                        -> perfil do usuário (uid == uid do Firebase Auth)
-//   users/{uid}/materias/{materiaId}   -> matérias do usuário (faltas ficam dentro do doc)
+//   users/{uid}/materias/{materiaId}   -> matérias (horários, faltas e notas ficam dentro do doc)
+//   users/{uid}/eventos/{eventoId}     -> provas, trabalhos e entregas
+//   users/{uid}/dispositivos/{id}      -> tokens de notificação (lembretes)
 //
 // Princípio: tudo é negado por padrão. Só o dono (request.auth.uid == uid) acessa
 // os próprios dados, e toda escrita tem o formato validado.
@@ -53,28 +55,100 @@ service cloud.firestore {
         && foto.matches('data:image/(webp|jpeg);base64,[A-Za-z0-9+/=]+');
     }
 
-    // Atualização do perfil: só `name` e `foto` podem mudar.
+    function isNotaRange(value) {
+      return value is number && value >= 0 && value <= 10;
+    }
+
+    function isDia(value) {
+      return value is string && value.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}');
+    }
+
+    // Preferências (média de aprovação, exame, semestre, lembretes). Tudo opcional.
+    function isValidConfig(c) {
+      let n = c.get('notificacoes', {});
+      return c is map
+        && c.keys().hasOnly(['mediaAprovacao', 'mediaExame', 'semestreInicio', 'semestreFim', 'notificacoes'])
+        && (!('mediaAprovacao' in c) || isNotaRange(c.mediaAprovacao))
+        && (!('mediaExame' in c) || isNotaRange(c.mediaExame))
+        && (!('semestreInicio' in c) || isDia(c.semestreInicio))
+        && (!('semestreFim' in c) || isDia(c.semestreFim))
+        && n is map
+        && n.keys().hasOnly(['aulas', 'provas', 'entregas', 'risco'])
+        && n.get('aulas', true) is bool
+        && n.get('provas', true) is bool
+        && n.get('entregas', true) is bool
+        && n.get('risco', true) is bool;
+    }
+
+    // Atualização do perfil: só `name`, `foto` e `config` podem mudar.
     // `foto` pode ser removida (campo apagado) ou trocada por uma imagem válida.
     function isValidUserUpdate() {
       let data = request.resource.data;
-      return data.diff(resource.data).affectedKeys().hasOnly(['name', 'foto'])
+      return data.diff(resource.data).affectedKeys().hasOnly(['name', 'foto', 'config'])
         && isNonEmptyString(data.name, 40)
-        && (!('foto' in data) || isValidFoto(data.foto));
+        && (!('foto' in data) || isValidFoto(data.foto))
+        && (!('config' in data) || isValidConfig(data.config));
     }
 
     // ---------------------------------------------------------------- materias
 
+    // v3: `horarios` (lista) substitui `diaSemana`. Matérias da v2.0 que ainda só
+    // têm `diaSemana` continuam válidas (o front converte quando a matéria é editada).
+    // Os itens de listas (horarios, faltas, notas) não podem ser percorridos pelas
+    // rules: validamos tipo e tamanho; o formato de cada item é responsabilidade do front.
     function isValidMateria(data) {
-      return data.keys().hasOnly(['nome', 'diaSemana', 'maxFaltas', 'cor', 'faltas', 'createdAt', 'updatedAt'])
-        && data.keys().hasAll(['nome', 'diaSemana', 'maxFaltas', 'cor', 'faltas', 'createdAt', 'updatedAt'])
+      return data.keys().hasOnly(['nome', 'diaSemana', 'horarios', 'maxFaltas', 'cor', 'faltas',
+                                  'professor', 'notas', 'mediaAprovacao', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['nome', 'maxFaltas', 'cor', 'faltas', 'createdAt', 'updatedAt'])
         && isNonEmptyString(data.nome, 40)
-        && isIntInRange(data.diaSemana, 1, 7)
+        && (('horarios' in data && data.horarios is list
+              && data.horarios.size() >= 1 && data.horarios.size() <= 14)
+            || isIntInRange(data.get('diaSemana', 0), 1, 7))
+        && (!('diaSemana' in data) || isIntInRange(data.diaSemana, 1, 7))
         && isIntInRange(data.maxFaltas, 1, 99)
         && data.cor in ['violet', 'pink', 'rose', 'amber', 'emerald', 'sky', 'indigo', 'teal']
         && data.faltas is list
         && data.faltas.size() <= 200
+        && (!('professor' in data) || (data.professor is map
+              && data.professor.keys().hasOnly(['nome', 'email'])
+              && isNonEmptyString(data.professor.nome, 60)
+              && (!('email' in data.professor) || isNonEmptyString(data.professor.email, 100))))
+        && (!('notas' in data) || (data.notas is list && data.notas.size() <= 30))
+        && (!('mediaAprovacao' in data) || isNotaRange(data.mediaAprovacao))
         && data.createdAt is timestamp
         && data.updatedAt is timestamp;
+    }
+
+    // ---------------------------------------------------------------- eventos
+    // Provas, trabalhos e entregas.
+    function isValidEvento(data) {
+      return data.keys().hasOnly(['tipo', 'titulo', 'materiaId', 'data', 'temHora', 'local',
+                                  'descricao', 'concluido', 'checklist', 'createdAt', 'updatedAt'])
+        && data.keys().hasAll(['tipo', 'titulo', 'data', 'temHora', 'concluido', 'checklist',
+                               'createdAt', 'updatedAt'])
+        && data.tipo in ['prova', 'trabalho', 'entrega', 'outro']
+        && isNonEmptyString(data.titulo, 60)
+        && (!('materiaId' in data) || isNonEmptyString(data.materiaId, 128))
+        && data.data is timestamp
+        && data.temHora is bool
+        && (!('local' in data) || isNonEmptyString(data.local, 60))
+        && (!('descricao' in data) || isNonEmptyString(data.descricao, 500))
+        && data.concluido is bool
+        && data.checklist is list
+        && data.checklist.size() <= 30
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // ---------------------------------------------------------------- dispositivos
+    // Tokens do Firebase Cloud Messaging (lembretes no celular). O id do doc é um
+    // hash do token, então o mesmo aparelho não duplica.
+    function isValidDispositivo(data) {
+      return data.keys().hasOnly(['token', 'plataforma', 'createdAt'])
+        && data.keys().hasAll(['token', 'createdAt'])
+        && isNonEmptyString(data.token, 4096)
+        && (!('plataforma' in data) || isNonEmptyString(data.plataforma, 120))
+        && data.createdAt is timestamp;
     }
 
     match /users/{uid} {
@@ -87,6 +161,17 @@ service cloud.firestore {
         allow read: if isOwner(uid);
         allow create, update: if isOwner(uid) && isValidMateria(request.resource.data);
         allow delete: if isOwner(uid);
+      }
+
+      match /eventos/{eventoId} {
+        allow read: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isValidEvento(request.resource.data);
+        allow delete: if isOwner(uid);
+      }
+
+      match /dispositivos/{dispositivoId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid) && isValidDispositivo(request.resource.data);
       }
     }
 

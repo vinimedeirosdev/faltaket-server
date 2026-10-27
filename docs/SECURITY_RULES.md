@@ -10,11 +10,11 @@ Toda mudança nelas precisa de teste.
 
 ## Visão geral
 
-| Caminho | Ler | Criar | Atualizar | Apagar |
-| --- | --- | --- | --- | --- |
-| `users/{uid}` | dono | dono, formato válido, **sem** `features` | dono, **só** `name` | dono |
-| `users/{uid}/materias/{id}` | dono | dono, formato válido | dono, formato válido | dono |
-| qualquer outro caminho (inclusive `materias` da v1) | ❌ | ❌ | ❌ | ❌ |
+| Caminho                                             | Ler  | Criar                                    | Atualizar            | Apagar |
+| --------------------------------------------------- | ---- | ---------------------------------------- | -------------------- | ------ |
+| `users/{uid}`                                       | dono | dono, formato válido, **sem** `features` | dono, **só** `name`  | dono   |
+| `users/{uid}/materias/{id}`                         | dono | dono, formato válido                     | dono, formato válido | dono   |
+| qualquer outro caminho (inclusive `materias` da v1) | ❌   | ❌                                       | ❌                   | ❌     |
 
 "Dono" = usuário logado com `request.auth.uid == uid`.
 
@@ -32,11 +32,11 @@ subcoleção dentro de uma matéria (ex.: `users/{uid}/materias/{id}/faltas`).
 
 ### Helpers
 
-| Função | Significado |
-| --- | --- |
-| `isSignedIn()` | `request.auth != null` |
-| `isOwner(uid)` | logado **e** `request.auth.uid == uid` |
-| `isNonEmptyString(v, max)` | string com 1..max caracteres |
+| Função                      | Significado                                          |
+| --------------------------- | ---------------------------------------------------- |
+| `isSignedIn()`              | `request.auth != null`                               |
+| `isOwner(uid)`              | logado **e** `request.auth.uid == uid`               |
+| `isNonEmptyString(v, max)`  | string com 1..max caracteres                         |
 | `isIntInRange(v, min, max)` | inteiro (não aceita `1.5` nem `"1"`) entre min e max |
 
 ### `users/{uid}`
@@ -49,8 +49,11 @@ subcoleção dentro de uma matéria (ex.: `users/{uid}/materias/{id}/faltas`).
     (`username == username.trim().lower()`), igual ao `normalizeUsername` do front;
   - `createdAt`: timestamp (use `serverTimestamp()`).
   - Como `features` não está na lista, o cliente **não consegue** se dar o Termo.
-- **update:** só o dono, e `diff(...).affectedKeys().hasOnly(['name', 'foto'])`:
-  - só `name` (1..40) e `foto` podem mudar. `foto` pode ser removida ou ser uma data URL `data:image/(webp|jpeg);base64,...` com até 150 mil caracteres (a foto de perfil fica no próprio doc, sem Firebase Storage);
+- **update:** só o dono, e `diff(...).affectedKeys().hasOnly(['name', 'foto', 'config'])`:
+  - só `name` (1..40), `foto` e `config` podem mudar. `foto` pode ser removida ou ser uma data URL `data:image/(webp|jpeg);base64,...` com até 150 mil caracteres (a foto de perfil fica no próprio doc, sem Firebase Storage);
+  - `config` (map, tudo opcional): `mediaAprovacao` e `mediaExame` números 0..10,
+    `semestreInicio`/`semestreFim` no formato `AAAA-MM-DD`, `notificacoes` só com as
+    chaves `aulas`, `provas`, `entregas`, `risco` (bool). Qualquer outra chave é negada;
   - `username`, `createdAt` e `features` ficam congelados — não dá para adicionar,
     alterar nem remover `features`;
   - um `setDoc` sem `merge` que "esqueça" `features` também é negado (seria remoção).
@@ -63,22 +66,49 @@ subcoleção dentro de uma matéria (ex.: `users/{uid}/materias/{id}/faltas`).
 - **read / delete:** só o dono.
 - **create / update:** só o dono, e o documento **resultante** precisa ser válido:
 
-| Campo | Regra |
-| --- | --- |
-| chaves | exatamente `nome`, `diaSemana`, `maxFaltas`, `cor`, `faltas`, `createdAt`, `updatedAt` |
-| `nome` | string 1..40 |
-| `diaSemana` | inteiro 1..7 (1 = segunda ... 7 = domingo) |
-| `maxFaltas` | inteiro 1..99 |
-| `cor` | uma de `violet`, `pink`, `rose`, `amber`, `emerald`, `sky`, `indigo`, `teal` |
-| `faltas` | lista com no máximo 200 itens (pode passar de `maxFaltas` = "reprovou") |
-| `createdAt`, `updatedAt` | timestamp |
+| Campo                    | Regra                                                                                                                           |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| chaves permitidas        | `nome`, `diaSemana`, `horarios`, `maxFaltas`, `cor`, `faltas`, `professor`, `notas`, `mediaAprovacao`, `createdAt`, `updatedAt` |
+| chaves obrigatórias      | `nome`, `maxFaltas`, `cor`, `faltas`, `createdAt`, `updatedAt` **e** (`horarios` **ou** `diaSemana`)                            |
+| `nome`                   | string 1..40                                                                                                                    |
+| `horarios`               | lista com 1..14 itens (v3)                                                                                                      |
+| `diaSemana`              | inteiro 1..7: **legado da v2.0**, aceito para as matérias ainda não editadas                                                    |
+| `maxFaltas`              | inteiro 1..99                                                                                                                   |
+| `cor`                    | uma de `violet`, `pink`, `rose`, `amber`, `emerald`, `sky`, `indigo`, `teal`                                                    |
+| `faltas`                 | lista com no máximo 200 itens (pode passar de `maxFaltas` = "reprovou")                                                         |
+| `professor`              | map só com `nome` (1..60) e `email` opcional (1..100)                                                                           |
+| `notas`                  | lista com no máximo 30 itens                                                                                                    |
+| `mediaAprovacao`         | número 0..10                                                                                                                    |
+| `createdAt`, `updatedAt` | timestamp                                                                                                                       |
 
 Como a validação é do documento final (`request.resource.data`), um `updateDoc`
-parcial funciona desde que o resultado continue válido.
+parcial funciona desde que o resultado continue válido. Isso inclui a conversão
+das matérias antigas, em que o front apaga `diaSemana` e grava `horarios` no mesmo update.
+
+### `users/{uid}/eventos/{eventoId}`
+
+Provas, trabalhos e entregas. Só o dono lê, cria, edita e apaga.
+
+| Campo                 | Regra                                                                                   |
+| --------------------- | --------------------------------------------------------------------------------------- |
+| obrigatórios          | `tipo`, `titulo`, `data`, `temHora`, `concluido`, `checklist`, `createdAt`, `updatedAt` |
+| `tipo`                | `prova`, `trabalho`, `entrega` ou `outro`                                               |
+| `titulo`              | string 1..60                                                                            |
+| `materiaId`           | opcional, string 1..128                                                                 |
+| `data`                | timestamp; `temHora` bool                                                               |
+| `local` / `descricao` | opcionais, string 1..60 / 1..500                                                        |
+| `concluido`           | bool                                                                                    |
+| `checklist`           | lista com no máximo 30 itens                                                            |
+
+### `users/{uid}/dispositivos/{id}`
+
+Tokens dos lembretes (Firebase Cloud Messaging). Só o dono lê, cria e apaga.
+Chaves: `token` (string 1..4096, obrigatório), `plataforma` (opcional, 1..120) e
+`createdAt` (timestamp). O script de lembretes usa o Admin SDK, que ignora as rules.
 
 ### Limitações conhecidas
 
-- **Itens de `faltas`:** as rules não conseguem iterar listas, então o formato de
+- **Itens de listas (`faltas`, `horarios`, `notas`, `checklist`):** as rules não conseguem iterar listas, então o formato de
   cada item (`{ id, data, obs? }`, `obs` <= 140) **não** é validado no servidor.
   O tamanho máximo (200) limita o estrago; o front deve validar os itens.
 - **Timestamps:** só o tipo é validado (não se é `request.time`). Prefira

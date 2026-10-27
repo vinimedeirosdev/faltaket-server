@@ -3,6 +3,26 @@
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/);
 versionamento [SemVer](https://semver.org/lang/pt-BR/).
 
+## [3.0.0] - 2026-10-27
+
+Acompanha o FaltaKet 3.0 (grade horária, notas, agenda e lembretes).
+
+### Adicionado
+
+- **Rules das matérias**: novos campos `horarios` (1..14), `professor`, `notas` (até 30) e
+  `mediaAprovacao`. Os itens de `faltas` podem ter `aulas: 2` e `justificada: true`.
+- **Compatibilidade**: matérias da v2.0 que só têm `diaSemana` continuam válidas; a
+  conversão para `horarios` acontece quando a matéria é editada, sem migração.
+- **`users/{uid}.config`** (média de aprovação, exame, datas do semestre, preferências
+  de lembrete), validado campo a campo.
+- **`users/{uid}/eventos`** (provas, trabalhos e entregas) e
+  **`users/{uid}/dispositivos`** (tokens de push).
+- **Lembretes**: `scripts/lembretes.ts` + `.github/workflows/lembretes.yml` (07h e 18h,
+  Brasília). O padrão é simular; só envia com `--enviar`. Guia em `docs/LEMBRETES.md`.
+- Testes: 12 novos cenários de rules (28 no total) e 6 de montagem dos lembretes
+  (`npm run test:unit`).
+- `.prettierrc.json` (mesmo estilo do front).
+
 ## [2.0.0] - 2026-10-27
 
 O repositório deixa de ser uma API e passa a ser a **infraestrutura Firebase** do
